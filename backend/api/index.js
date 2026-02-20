@@ -1,7 +1,5 @@
 import { ApolloServer } from '@apollo/server';
-import { expressMiddleware } from '@apollo/server/express4';
-import express from 'express';
-import cors from 'cors';
+import { startServerAndCreateLambdaHandler, handlers } from '@as-integrations/aws-lambda';
 import { calculateSolutions } from './logic.js';
 
 const typeDefs = `#graphql
@@ -47,26 +45,39 @@ const server = new ApolloServer({
   introspection: true,
 });
 
-// Inicialização assíncrona do Apollo
-await server.start();
-
-const app = express();
-
 /**
- * Configuração de CORS robusta diretamente no Express.
- * Isso garante que tanto preflight (OPTIONS) quanto requisições reais funcionem.
+ * Voltamos para o AWS Lambda Handler, mas agora com uma configuração
+ * mais simplificada e exportação padrão para o Vercel.
  */
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+export default startServerAndCreateLambdaHandler(
+  server,
+  handlers.createAPIGatewayProxyEventV2RequestHandler(),
+  {
+    middleware: [
+      async (event) => {
+        // Resposta imediata para preflight CORS
+        if (event.requestContext?.http?.method === 'OPTIONS') {
+          return {
+            statusCode: 204,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+              'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            },
+            body: '',
+          };
+        }
 
-app.use(express.json());
-
-// Rota para o Apollo Server
-app.use('/api', expressMiddleware(server));
-app.use('/', expressMiddleware(server));
-
-// Exporta o app para o Vercel atuar como uma função
-export default app;
+        return (result) => {
+          result.headers = {
+            ...result.headers,
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          };
+          return result;
+        };
+      },
+    ],
+  }
+);
