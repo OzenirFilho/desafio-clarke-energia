@@ -66,8 +66,11 @@ function App() {
     `;
 
     try {
-      // Executa requisição POST para o Apollo Server (rodando na porta 4000)
-      const response = await fetch('http://localhost:4000/', {
+      // URL do Backend: Usa variável de ambiente do Vite ou fallback para local
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/';
+
+      // Executa requisição POST para o Apollo Server
+      const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
