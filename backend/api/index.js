@@ -1,6 +1,7 @@
-const { ApolloServer } = require('@apollo/server');
-const { startServerAndCreateLambdaHandler, handlers } = require('@as-integrations/aws-lambda');
-const { calculateSolutions } = require('./logic');
+import { ApolloServer } from '@apollo/server';
+import { startServerAndCreateLambdaHandler, handlers } from '@as-integrations/aws-lambda';
+import { startStandaloneServer } from '@apollo/server/standalone';
+import { calculateSolutions } from './logic.js';
 
 /**
  * Definições do Schema GraphQL (Tipos de dados).
@@ -53,19 +54,27 @@ const resolvers = {
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  introspection: true, // Necessário para o sandbox do Apollo funcionar em produção (Vercel)
+  introspection: true,
 });
 
 /**
- * Exporta o handler configurado para ambiente Serverless (Vercel/AWS Lambda).
- * Usamos startServerAndCreateLambdaHandler para adaptar o servidor Apollo.
+ * Lógica para rodar Localmente (Standalone) ou no Vercel (Lambda).
  */
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  // Se não estiver no Vercel, sobe como servidor tradicional para testes locais
+  startStandaloneServer(server, {
+    listen: { port: 4000 },
+  }).then(({ url }) => {
+    console.log(`🚀 Servidor Local pronto em: ${url}`);
+  });
+}
+
+// Exporta o handler para o Vercel
 export const handler = startServerAndCreateLambdaHandler(
   server,
   handlers.createAPIGatewayProxyEventV2RequestHandler(),
   {
     middleware: [
-      // Middleware para lidar com CORS em ambiente serverless
       async (event) => {
         return (result) => {
           result.headers = {
