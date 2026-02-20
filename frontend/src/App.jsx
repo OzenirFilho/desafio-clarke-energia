@@ -66,8 +66,8 @@ function App() {
     `;
 
     try {
-      // URL do Backend: Usa variável de ambiente do Vite ou fallback para local
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/';
+      // URL do Backend: Usa variável de ambiente do Vite ou fallback para /api (quando no mesmo domínio no Vercel)
+      const API_URL = import.meta.env.VITE_API_URL || '/api';
 
       // Executa requisição POST para o Apollo Server
       const response = await fetch(API_URL, {
