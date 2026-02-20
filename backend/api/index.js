@@ -1,6 +1,5 @@
 import { ApolloServer } from '@apollo/server';
 import { startServerAndCreateLambdaHandler, handlers } from '@as-integrations/aws-lambda';
-import { startStandaloneServer } from '@apollo/server/standalone';
 import { calculateSolutions } from './logic.js';
 
 /**
@@ -57,14 +56,17 @@ const server = new ApolloServer({
   introspection: true,
 });
 
-// Exporta o handler para o Vercel
-export const handler = startServerAndCreateLambdaHandler(
+/**
+ * Exporta o handler padrão para o Vercel Serverless.
+ * Configurado com suporte a CORS para resolver bloqueios no navegador.
+ */
+export default startServerAndCreateLambdaHandler(
   server,
   handlers.createAPIGatewayProxyEventV2RequestHandler(),
   {
     middleware: [
       async (event) => {
-        // Handle OPTIONS preflight requests specifically
+        // Tratamento explícito para requisições OPTIONS (CORS Preflight)
         if (event.requestContext?.http?.method === 'OPTIONS') {
           return {
             statusCode: 204,
