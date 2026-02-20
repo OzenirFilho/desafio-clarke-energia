@@ -57,18 +57,6 @@ const server = new ApolloServer({
   introspection: true,
 });
 
-/**
- * Lógica para rodar Localmente (Standalone) ou no Vercel (Lambda).
- */
-if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-  // Se não estiver no Vercel, sobe como servidor tradicional para testes locais
-  startStandaloneServer(server, {
-    listen: { port: 4000 },
-  }).then(({ url }) => {
-    console.log(`🚀 Servidor Local pronto em: ${url}`);
-  });
-}
-
 // Exporta o handler para o Vercel
 export const handler = startServerAndCreateLambdaHandler(
   server,
@@ -76,12 +64,26 @@ export const handler = startServerAndCreateLambdaHandler(
   {
     middleware: [
       async (event) => {
+        // Handle OPTIONS preflight requests specifically
+        if (event.requestContext?.http?.method === 'OPTIONS') {
+          return {
+            statusCode: 204,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+              'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+              'Access-Control-Max-Age': '86400',
+            },
+            body: '',
+          };
+        }
+
         return (result) => {
           result.headers = {
             ...result.headers,
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
           };
           return result;
         };
