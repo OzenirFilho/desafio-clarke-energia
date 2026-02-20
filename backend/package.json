@@ -1,0 +1,27 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@apollo/server": "^5.4.0",
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "graphql": "^16.12.0",
+    "nodemon": "^3.1.11"
+  },
+  "devDependencies": {
+    "artillery": "^2.0.30",
+    "jest": "^30.2.0",
+    "supertest": "^7.2.2"
+  }
+}
