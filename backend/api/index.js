@@ -2,6 +2,9 @@ import { ApolloServer } from '@apollo/server';
 import { startServerAndCreateLambdaHandler, handlers } from '@as-integrations/aws-lambda';
 import { calculateSolutions } from './logic.js';
 
+/**
+ * Schema GraphQL
+ */
 const typeDefs = `#graphql
   type Supplier {
     id: ID!
@@ -25,17 +28,17 @@ const typeDefs = `#graphql
 
   type Query {
     getSolutions(consumption: Float!, state: String!): [Solution!]!
+    health: String
   }
 `;
 
 const resolvers = {
   Query: {
     getSolutions: (_, { consumption, state }) => {
-      if (consumption <= 0) {
-        throw new Error('Consumo deve ser maior que zero.');
-      }
+      if (consumption <= 0) throw new Error('Consumo deve ser maior que zero.');
       return calculateSolutions(consumption, state);
     },
+    health: () => "OK"
   },
 };
 
@@ -45,9 +48,16 @@ const server = new ApolloServer({
   introspection: true,
 });
 
+// Resposta padrão para evitar falhas de CORS e Preflight
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Max-Age': '86400',
+};
+
 /**
- * Voltamos para o AWS Lambda Handler, mas agora com uma configuração
- * mais simplificada e exportação padrão para o Vercel.
+ * Handler Principal para Vercel Serverless
  */
 export default startServerAndCreateLambdaHandler(
   server,
@@ -55,15 +65,11 @@ export default startServerAndCreateLambdaHandler(
   {
     middleware: [
       async (event) => {
-        // Resposta imediata para preflight CORS
+        // Lidar com Preflight do Navegador
         if (event.requestContext?.http?.method === 'OPTIONS') {
           return {
             statusCode: 204,
-            headers: {
-              'Access-Control-Allow-Origin': '*',
-              'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-              'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-            },
+            headers: corsHeaders,
             body: '',
           };
         }
@@ -71,9 +77,7 @@ export default startServerAndCreateLambdaHandler(
         return (result) => {
           result.headers = {
             ...result.headers,
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            ...corsHeaders
           };
           return result;
         };
