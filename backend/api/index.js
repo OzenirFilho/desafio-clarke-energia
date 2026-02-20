@@ -1,10 +1,9 @@
 import { ApolloServer } from '@apollo/server';
-import { startServerAndCreateLambdaHandler, handlers } from '@as-integrations/aws-lambda';
+import { expressMiddleware } from '@apollo/server/express4';
+import express from 'express';
+import cors from 'cors';
 import { calculateSolutions } from './logic.js';
 
-/**
- * Definições do Schema GraphQL (Tipos de dados).
- */
 const typeDefs = `#graphql
   type Supplier {
     id: ID!
@@ -31,65 +30,43 @@ const typeDefs = `#graphql
   }
 `;
 
-/**
- * Resolvers: Lógica de execução das consultas.
- */
 const resolvers = {
   Query: {
     getSolutions: (_, { consumption, state }) => {
-      // Validação simples de entrada
       if (consumption <= 0) {
         throw new Error('Consumo deve ser maior que zero.');
       }
-      // Chama a lógica de negócio modularizada em logic.js
       return calculateSolutions(consumption, state);
     },
   },
 };
 
-/**
- * Inicialização do Apollo Server.
- */
 const server = new ApolloServer({
   typeDefs,
   resolvers,
   introspection: true,
 });
 
-/**
- * Exporta o handler padrão para o Vercel Serverless.
- * Configurado com suporte a CORS para resolver bloqueios no navegador.
- */
-export default startServerAndCreateLambdaHandler(
-  server,
-  handlers.createAPIGatewayProxyEventV2RequestHandler(),
-  {
-    middleware: [
-      async (event) => {
-        // Tratamento explícito para requisições OPTIONS (CORS Preflight)
-        if (event.requestContext?.http?.method === 'OPTIONS') {
-          return {
-            statusCode: 204,
-            headers: {
-              'Access-Control-Allow-Origin': '*',
-              'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-              'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-              'Access-Control-Max-Age': '86400',
-            },
-            body: '',
-          };
-        }
+// Inicialização assíncrona do Apollo
+await server.start();
 
-        return (result) => {
-          result.headers = {
-            ...result.headers,
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-          };
-          return result;
-        };
-      },
-    ],
-  }
-);
+const app = express();
+
+/**
+ * Configuração de CORS robusta diretamente no Express.
+ * Isso garante que tanto preflight (OPTIONS) quanto requisições reais funcionem.
+ */
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+app.use(express.json());
+
+// Rota para o Apollo Server
+app.use('/api', expressMiddleware(server));
+app.use('/', expressMiddleware(server));
+
+// Exporta o app para o Vercel atuar como uma função
+export default app;
