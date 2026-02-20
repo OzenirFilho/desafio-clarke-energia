@@ -134,4 +134,4 @@ function calculateSolutions(consumption, state) {
         .sort((a, b) => b.savings - a.savings);
 }
 
-module.exports = { calculateSolutions, tariffMap, suppliers };
+export { calculateSolutions, tariffMap, suppliers };
